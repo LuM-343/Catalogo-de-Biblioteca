@@ -1,28 +1,33 @@
 using System;
-using System.Collections.Generic;
 
 namespace EstructurasBPlus
 {
     public class NodoBPlus<TKey, TValue> where TKey : IComparable<TKey>
     {
         public bool Hoja { get; set; }
-        public List<TKey> ClavesGuia { get; set; }              // Claves guía (nodos internos)
-        public List<TValue> Valores { get; set; }               // Datos reales (solo en hojas)
-        public List<NodoBPlus<TKey, TValue>> Hijos { get; set; }
+        public int ConteoClaves { get; set; }
+        public int ConteoHijos { get; set; }
+
+        public TKey[] ClavesGuia { get; set; }
+        public TValue[] Valores { get; set; }
+        public NodoBPlus<TKey, TValue>[] Hijos { get; set; }
+
         public NodoBPlus<TKey, TValue> Siguiente { get; set; }
         public NodoBPlus<TKey, TValue> Padre { get; set; }
 
-        // Inicializa un nuevo nodo estableciendo si operará como hoja o nodo interno
-        public NodoBPlus(bool hoja = true)
+        public NodoBPlus(bool hoja, int maxCapacidad)
         {
             Hoja = hoja;
-            ClavesGuia = new List<TKey>();
-            Valores = new List<TValue>();
-            Hijos = new List<NodoBPlus<TKey, TValue>>();
+            ConteoClaves = 0;
+            ConteoHijos = 0;
+
+            // Se reserva espacio adicional (+1) para permitir sobreflujo temporal antes del split
+            ClavesGuia = new TKey[maxCapacidad + 1];
+            Hijos = new NodoBPlus<TKey, TValue>[maxCapacidad + 2];
+            Valores = new TValue[maxCapacidad + 1];
         }
     }
 
-    // Estructura del Árbol B+
     public class ArbolBPlus<TKey, TValue> where TKey : IComparable<TKey>
     {
         public int Orden { get; }
@@ -33,7 +38,6 @@ namespace EstructurasBPlus
 
         private readonly Func<TValue, TKey> _selectorClave;
 
-        // Constructor: Configura los límites de capacidad y la función extractora de clave
         public ArbolBPlus(Func<TValue, TKey> selectorClave, int orden = 4)
         {
             if (orden < 3)
@@ -43,18 +47,17 @@ namespace EstructurasBPlus
             MaxClaves = orden - 1;
             MinElementosHoja = (int)Math.Ceiling((orden - 1) / 2.0);
             MinHijosInterno = (int)Math.Ceiling(orden / 2.0);
-            Raiz = new NodoBPlus<TKey, TValue>(hoja: true);
             _selectorClave = selectorClave ?? throw new ArgumentNullException(nameof(selectorClave));
+            Raiz = new NodoBPlus<TKey, TValue>(hoja: true, MaxClaves);
         }
 
-        // Determina el índice del hijo por el cual descender evaluando las claves guía
-        private int BisectRightGuias(List<TKey> guias, TKey clave)
+        private int BisectRightGuias(NodoBPlus<TKey, TValue> nodo, TKey clave)
         {
-            int bajo = 0, alto = guias.Count;
+            int bajo = 0, alto = nodo.ConteoClaves;
             while (bajo < alto)
             {
                 int medio = (bajo + alto) / 2;
-                if (clave.CompareTo(guias[medio]) < 0)
+                if (clave.CompareTo(nodo.ClavesGuia[medio]) < 0)
                     alto = medio;
                 else
                     bajo = medio + 1;
@@ -62,15 +65,14 @@ namespace EstructurasBPlus
             return bajo;
         }
 
-        // Realiza una búsqueda binaria en una hoja; retorna el índice si existe o el complemento bitwise (~) para inserción ordenada
-        private int BuscarIndiceValor(List<TValue> valores, TKey clave)
+        private int BuscarIndiceValor(NodoBPlus<TKey, TValue> hoja, TKey clave)
         {
             int bajo = 0;
-            int alto = valores.Count - 1;
+            int alto = hoja.ConteoClaves - 1;
             while (bajo <= alto)
             {
                 int medio = (bajo + alto) / 2;
-                int comparacion = _selectorClave(valores[medio]).CompareTo(clave);
+                int comparacion = _selectorClave(hoja.Valores[medio]).CompareTo(clave);
 
                 if (comparacion == 0) return medio;
                 if (comparacion < 0) bajo = medio + 1;
@@ -79,76 +81,60 @@ namespace EstructurasBPlus
             return ~bajo;
         }
 
-        // Navega desde la raíz hacia abajo hasta localizar la hoja donde debería estar la clave
         private NodoBPlus<TKey, TValue> BuscarHoja(TKey clave)
         {
             var nodo = Raiz;
             while (!nodo.Hoja)
             {
-                int pos = BisectRightGuias(nodo.ClavesGuia, clave);
+                int pos = BisectRightGuias(nodo, clave);
                 nodo = nodo.Hijos[pos];
             }
             return nodo;
         }
 
-        // Busca un elemento por su clave exacta; devuelve el valor o default si no existe
         public TValue Buscar(TKey clave)
         {
             var hoja = BuscarHoja(clave);
-            int idx = BuscarIndiceValor(hoja.Valores, clave);
+            int idx = BuscarIndiceValor(hoja, clave);
             return (idx >= 0) ? hoja.Valores[idx] : default;
         }
 
-        // Recupera en orden todos los elementos cuyas claves se encuentren dentro del rango [inicio, fin] recorriendo las hojas
-        public List<TValue> BuscarPorRango(TKey inicio, TKey fin)
-        {
-            if (inicio.CompareTo(fin) > 0)
-                (inicio, fin) = (fin, inicio);
-
-            var hoja = BuscarHoja(inicio);
-            var resultado = new List<TValue>();
-
-            while (hoja != null)
-            {
-                foreach (var valor in hoja.Valores)
-                {
-                    TKey clave = _selectorClave(valor);
-                    if (clave.CompareTo(inicio) >= 0 && clave.CompareTo(fin) <= 0)
-                        resultado.Add(valor);
-                    else if (clave.CompareTo(fin) > 0)
-                        return resultado;
-                }
-                hoja = hoja.Siguiente;
-            }
-            return resultado;
-        }
-
-        // Inserta un nuevo objeto de forma ordenada en la hoja adecuada, dividiendo nodos si ocurre desbordamiento
         public bool Insertar(TValue valor)
         {
             TKey clave = _selectorClave(valor);
             var hoja = BuscarHoja(clave);
-            int idx = BuscarIndiceValor(hoja.Valores, clave);
+            int idx = BuscarIndiceValor(hoja, clave);
 
-            if (idx >= 0) return false; // Clave duplicada no permitida
+            if (idx >= 0) return false; // Clave duplicada
 
-            hoja.Valores.Insert(~idx, valor);
+            int posInsercion = ~idx;
+            for (int i = hoja.ConteoClaves; i > posInsercion; i--)
+            {
+                hoja.Valores[i] = hoja.Valores[i - 1];
+            }
+            hoja.Valores[posInsercion] = valor;
+            hoja.ConteoClaves++;
 
-            if (hoja.Valores.Count > MaxClaves)
+            if (hoja.ConteoClaves > MaxClaves)
                 DividirHoja(hoja);
 
             RecalcularGuias(Raiz);
             return true;
         }
 
-        // Divide una hoja llena en dos mitades, actualiza la lista enlazada y propaga la clave guía hacia el padre
         private void DividirHoja(NodoBPlus<TKey, TValue> hoja)
         {
-            int punto = (hoja.Valores.Count + 1) / 2;
-            var nuevaHoja = new NodoBPlus<TKey, TValue>(hoja: true) { Padre = hoja.Padre };
+            int punto = (hoja.ConteoClaves + 1) / 2;
+            var nuevaHoja = new NodoBPlus<TKey, TValue>(hoja: true, MaxClaves) { Padre = hoja.Padre };
 
-            nuevaHoja.Valores.AddRange(hoja.Valores.GetRange(punto, hoja.Valores.Count - punto));
-            hoja.Valores.RemoveRange(punto, hoja.Valores.Count - punto);
+            int elementosNuevos = hoja.ConteoClaves - punto;
+            for (int i = 0; i < elementosNuevos; i++)
+            {
+                nuevaHoulaArrayCopy(hoja.Valores, punto + i, nuevaHoja.Valores, i);
+                nuevaHoja.ConteoClaves++;
+                hoja.Valores[punto + i] = default;
+            }
+            hoja.ConteoClaves = punto;
 
             nuevaHoja.Siguiente = hoja.Siguiente;
             hoja.Siguiente = nuevaHoja;
@@ -156,15 +142,22 @@ namespace EstructurasBPlus
             InsertarEnPadre(hoja, _selectorClave(nuevaHoja.Valores[0]), nuevaHoja);
         }
 
-        // Inserta la clave guía y el puntero al nuevo hijo en el nodo padre, crea una nueva raíz si la raíz actual se dividió
+        private static void nuevaHoulaArrayCopy(TValue[] origen, int idxOrigen, TValue[] destino, int idxDestino)
+        {
+            destino[idxDestino] = origen[idxOrigen];
+        }
+
         private void InsertarEnPadre(NodoBPlus<TKey, TValue> izq, TKey guia, NodoBPlus<TKey, TValue> der)
         {
             if (izq == Raiz)
             {
-                var nuevaRaiz = new NodoBPlus<TKey, TValue>(hoja: false);
-                nuevaRaiz.ClavesGuia.Add(guia);
-                nuevaRaiz.Hijos.Add(izq);
-                nuevaRaiz.Hijos.Add(der);
+                var nuevaRaiz = new NodoBPlus<TKey, TValue>(hoja: false, MaxClaves);
+                nuevaRaiz.ClavesGuia[0] = guia;
+                nuevaRaiz.ConteoClaves = 1;
+                nuevaRaiz.Hijos[0] = izq;
+                nuevaRaiz.Hijos[1] = der;
+                nuevaRaiz.ConteoHijos = 2;
+
                 izq.Padre = nuevaRaiz;
                 der.Padre = nuevaRaiz;
                 Raiz = nuevaRaiz;
@@ -172,98 +165,153 @@ namespace EstructurasBPlus
             }
 
             var padre = izq.Padre;
-            int pos = padre.Hijos.IndexOf(izq);
-            padre.ClavesGuia.Insert(pos, guia);
-            padre.Hijos.Insert(pos + 1, der);
+            int pos = Array.IndexOf(padre.Hijos, izq, 0, padre.ConteoHijos);
+
+            for (int i = padre.ConteoClaves; i > pos; i--)
+                padre.ClavesGuia[i] = padre.ClavesGuia[i - 1];
+            padre.ClavesGuia[pos] = guia;
+            padre.ConteoClaves++;
+
+            for (int i = padre.ConteoHijos; i > pos + 1; i--)
+                padre.Hijos[i] = padre.Hijos[i - 1];
+            padre.Hijos[pos + 1] = der;
+            padre.ConteoHijos++;
+
             der.Padre = padre;
 
-            if (padre.ClavesGuia.Count > MaxClaves)
+            if (padre.ConteoClaves > MaxClaves)
                 DividirInterno(padre);
         }
 
-        // Divide un nodo interno desbordado, subiendo la clave central al nivel superior y repartiendo hijos y guías
         private void DividirInterno(NodoBPlus<TKey, TValue> nodo)
         {
-            int centro = nodo.ClavesGuia.Count / 2;
+            int centro = nodo.ConteoClaves / 2;
             TKey claveQueSube = nodo.ClavesGuia[centro];
 
-            var nuevoInterno = new NodoBPlus<TKey, TValue>(hoja: false) { Padre = nodo.Padre };
-            nuevoInterno.ClavesGuia.AddRange(nodo.ClavesGuia.GetRange(centro + 1, nodo.ClavesGuia.Count - (centro + 1)));
-            nuevoInterno.Hijos.AddRange(nodo.Hijos.GetRange(centro + 1, nodo.Hijos.Count - (centro + 1)));
+            var nuevoInterno = new NodoBPlus<TKey, TValue>(hoja: false, MaxClaves) { Padre = nodo.Padre };
 
-            foreach (var h in nuevoInterno.Hijos) h.Padre = nuevoInterno;
+            int j = 0;
+            for (int i = centro + 1; i < nodo.ConteoClaves; i++)
+            {
+                nuevoInterno.ClavesGuia[j++] = nodo.ClavesGuia[i];
+                nuevoInterno.ConteoClaves++;
+                nodo.ClavesGuia[i] = default;
+            }
 
-            nodo.ClavesGuia.RemoveRange(centro, nodo.ClavesGuia.Count - centro);
-            nodo.Hijos.RemoveRange(centro + 1, nodo.Hijos.Count - (centro + 1));
+            j = 0;
+            for (int i = centro + 1; i < nodo.ConteoHijos; i++)
+            {
+                nuevoInterno.Hijos[j] = nodo.Hijos[i];
+                nuevoInterno.Hijos[j].Padre = nuevoInterno;
+                nuevoInterno.ConteoHijos++;
+                nodo.Hijos[i] = null;
+                j++;
+            }
+
+            nodo.ClavesGuia[centro] = default;
+            nodo.ConteoClaves = centro;
+            nodo.ConteoHijos = centro + 1;
 
             InsertarEnPadre(nodo, claveQueSube, nuevoInterno);
         }
 
-        // Remueve un elemento a partir de su clave y dispara la reparación por underflow si la hoja queda con menos del mínimo
         public bool Eliminar(TKey clave)
         {
             var hoja = BuscarHoja(clave);
-            int pos = BuscarIndiceValor(hoja.Valores, clave);
+            int pos = BuscarIndiceValor(hoja, clave);
 
             if (pos < 0) return false;
 
-            hoja.Valores.RemoveAt(pos);
+            for (int i = pos; i < hoja.ConteoClaves - 1; i++)
+                hoja.Valores[i] = hoja.Valores[i + 1];
 
-            if (hoja != Raiz && hoja.Valores.Count < MinElementosHoja)
+            hoja.Valores[hoja.ConteoClaves - 1] = default;
+            hoja.ConteoClaves--;
+
+            if (hoja != Raiz && hoja.ConteoClaves < MinElementosHoja)
                 RepararHoja(hoja);
 
             RecalcularGuias(Raiz);
             return true;
         }
 
-        // Restaura el balance de una hoja desabastecida pidiendo prestado a un hermano adyacente o fusionándose con él
         private void RepararHoja(NodoBPlus<TKey, TValue> hoja)
         {
             var padre = hoja.Padre;
-            int pos = padre.Hijos.IndexOf(hoja);
+            int pos = Array.IndexOf(padre.Hijos, hoja, 0, padre.ConteoHijos);
             var izq = (pos > 0) ? padre.Hijos[pos - 1] : null;
-            var der = (pos + 1 < padre.Hijos.Count) ? padre.Hijos[pos + 1] : null;
+            var der = (pos + 1 < padre.ConteoHijos) ? padre.Hijos[pos + 1] : null;
 
-            if (izq != null && izq.Valores.Count > MinElementosHoja)
+            if (izq != null && izq.ConteoClaves > MinElementosHoja)
             {
-                var prestado = izq.Valores[^1];
-                izq.Valores.RemoveAt(izq.Valores.Count - 1);
-                hoja.Valores.Insert(0, prestado);
+                var prestado = izq.Valores[izq.ConteoClaves - 1];
+                izq.Valores[izq.ConteoClaves - 1] = default;
+                izq.ConteoClaves--;
+
+                for (int i = hoja.ConteoClaves; i > 0; i--)
+                    hoja.Valores[i] = hoja.Valores[i - 1];
+                hoja.Valores[0] = prestado;
+                hoja.ConteoClaves++;
                 return;
             }
 
-            if (der != null && der.Valores.Count > MinElementosHoja)
+            if (der != null && der.ConteoClaves > MinElementosHoja)
             {
                 var prestado = der.Valores[0];
-                der.Valores.RemoveAt(0);
-                hoja.Valores.Add(prestado);
+                for (int i = 0; i < der.ConteoClaves - 1; i++)
+                    der.Valores[i] = der.Valores[i + 1];
+                der.Valores[der.ConteoClaves - 1] = default;
+                der.ConteoClaves--;
+
+                hoja.Valores[hoja.ConteoClaves++] = prestado;
                 return;
             }
 
             if (izq != null)
             {
-                izq.Valores.AddRange(hoja.Valores);
+                for (int i = 0; i < hoja.ConteoClaves; i++)
+                    izq.Valores[izq.ConteoClaves++] = hoja.Valores[i];
+
                 izq.Siguiente = hoja.Siguiente;
-                padre.Hijos.RemoveAt(pos);
-                padre.ClavesGuia.RemoveAt(pos - 1);
+
+                for (int i = pos; i < padre.ConteoHijos - 1; i++)
+                    padre.Hijos[i] = padre.Hijos[i + 1];
+                padre.Hijos[padre.ConteoHijos - 1] = null;
+                padre.ConteoHijos--;
+
+                for (int i = pos - 1; i < padre.ConteoClaves - 1; i++)
+                    padre.ClavesGuia[i] = padre.ClavesGuia[i + 1];
+                padre.ClavesGuia[padre.ConteoClaves - 1] = default;
+                padre.ConteoClaves--;
+
                 RepararInterno(padre);
             }
             else if (der != null)
             {
-                hoja.Valores.AddRange(der.Valores);
+                for (int i = 0; i < der.ConteoClaves; i++)
+                    hoja.Valores[hoja.ConteoClaves++] = der.Valores[i];
+
                 hoja.Siguiente = der.Siguiente;
-                padre.Hijos.RemoveAt(pos + 1);
-                padre.ClavesGuia.RemoveAt(pos);
+
+                for (int i = pos + 1; i < padre.ConteoHijos - 1; i++)
+                    padre.Hijos[i] = padre.Hijos[i + 1];
+                padre.Hijos[padre.ConteoHijos - 1] = null;
+                padre.ConteoHijos--;
+
+                for (int i = pos; i < padre.ConteoClaves - 1; i++)
+                    padre.ClavesGuia[i] = padre.ClavesGuia[i + 1];
+                padre.ClavesGuia[padre.ConteoClaves - 1] = default;
+                padre.ConteoClaves--;
+
                 RepararInterno(padre);
             }
         }
 
-        // Restaura el balance de un nodo interno con escasez de hijos mediante rotación o fusión con nodos hermanos
         private void RepararInterno(NodoBPlus<TKey, TValue> nodo)
         {
             if (nodo == Raiz)
             {
-                if (nodo.ClavesGuia.Count == 0)
+                if (nodo.ConteoClaves == 0 && nodo.ConteoHijos > 0)
                 {
                     Raiz = nodo.Hijos[0];
                     Raiz.Padre = null;
@@ -271,91 +319,153 @@ namespace EstructurasBPlus
                 return;
             }
 
-            if (nodo.Hijos.Count >= MinHijosInterno) return;
+            if (nodo.ConteoHijos >= MinHijosInterno) return;
 
             var padre = nodo.Padre;
-            int pos = padre.Hijos.IndexOf(nodo);
+            int pos = Array.IndexOf(padre.Hijos, nodo, 0, padre.ConteoHijos);
             var izq = (pos > 0) ? padre.Hijos[pos - 1] : null;
-            var der = (pos + 1 < padre.Hijos.Count) ? padre.Hijos[pos + 1] : null;
+            var der = (pos + 1 < padre.ConteoHijos) ? padre.Hijos[pos + 1] : null;
 
-            if (izq != null && izq.Hijos.Count > MinHijosInterno)
+            if (izq != null && izq.ConteoHijos > MinHijosInterno)
             {
-                var hijoMovido = izq.Hijos[^1];
-                izq.Hijos.RemoveAt(izq.Hijos.Count - 1);
+                var hijoMovido = izq.Hijos[izq.ConteoHijos - 1];
+                izq.Hijos[izq.ConteoHijos - 1] = null;
+                izq.ConteoHijos--;
                 hijoMovido.Padre = nodo;
-                TKey nuevaGuia = izq.ClavesGuia[^1];
-                izq.ClavesGuia.RemoveAt(izq.ClavesGuia.Count - 1);
 
-                nodo.Hijos.Insert(0, hijoMovido);
-                nodo.ClavesGuia.Insert(0, padre.ClavesGuia[pos - 1]);
-                padre.ClavesGuia[pos - 1] = nuevaGuia;
+                TKey guiaMovida = izq.ClavesGuia[izq.ConteoClaves - 1];
+                izq.ClavesGuia[izq.ConteoClaves - 1] = default;
+                izq.ConteoClaves--;
+
+                for (int i = nodo.ConteoHijos; i > 0; i--)
+                    nodo.Hijos[i] = nodo.Hijos[i - 1];
+                nodo.Hijos[0] = hijoMovido;
+                nodo.ConteoHijos++;
+
+                for (int i = nodo.ConteoClaves; i > 0; i--)
+                    nodo.ClavesGuia[i] = nodo.ClavesGuia[i - 1];
+                nodo.ClavesGuia[0] = padre.ClavesGuia[pos - 1];
+                nodo.ConteoClaves++;
+
+                padre.ClavesGuia[pos - 1] = guiaMovida;
                 return;
             }
 
-            if (der != null && der.Hijos.Count > MinHijosInterno)
+            if (der != null && der.ConteoHijos > MinHijosInterno)
             {
                 var hijoMovido = der.Hijos[0];
-                der.Hijos.RemoveAt(0);
+                for (int i = 0; i < der.ConteoHijos - 1; i++)
+                    der.Hijos[i] = der.Hijos[i + 1];
+                der.Hijos[der.ConteoHijos - 1] = null;
+                der.ConteoHijos--;
                 hijoMovido.Padre = nodo;
 
-                nodo.Hijos.Add(hijoMovido);
-                nodo.ClavesGuia.Add(padre.ClavesGuia[pos]);
+                nodo.Hijos[nodo.ConteoHijos++] = hijoMovido;
+                nodo.ClavesGuia[nodo.ConteoClaves++] = padre.ClavesGuia[pos];
+
                 padre.ClavesGuia[pos] = der.ClavesGuia[0];
-                der.ClavesGuia.RemoveAt(0);
+                for (int i = 0; i < der.ConteoClaves - 1; i++)
+                    der.ClavesGuia[i] = der.ClavesGuia[i + 1];
+                der.ClavesGuia[der.ConteoClaves - 1] = default;
+                der.ConteoClaves--;
                 return;
             }
 
             if (izq != null)
             {
-                izq.ClavesGuia.Add(padre.ClavesGuia[pos - 1]);
-                padre.ClavesGuia.RemoveAt(pos - 1);
-                izq.ClavesGuia.AddRange(nodo.ClavesGuia);
-                foreach (var h in nodo.Hijos) h.Padre = izq;
-                izq.Hijos.AddRange(nodo.Hijos);
-                padre.Hijos.RemoveAt(pos);
+                izq.ClavesGuia[izq.ConteoClaves++] = padre.ClavesGuia[pos - 1];
+                for (int i = 0; i < nodo.ConteoClaves; i++)
+                    izq.ClavesGuia[izq.ConteoClaves++] = nodo.ClavesGuia[i];
+
+                for (int i = 0; i < nodo.ConteoHijos; i++)
+                {
+                    nodo.Hijos[i].Padre = izq;
+                    izq.Hijos[izq.ConteoHijos++] = nodo.Hijos[i];
+                }
+
+                for (int i = pos - 1; i < padre.ConteoClaves - 1; i++)
+                    padre.ClavesGuia[i] = padre.ClavesGuia[i + 1];
+                padre.ClavesGuia[padre.ConteoClaves - 1] = default;
+                padre.ConteoClaves--;
+
+                for (int i = pos; i < padre.ConteoHijos - 1; i++)
+                    padre.Hijos[i] = padre.Hijos[i + 1];
+                padre.Hijos[padre.ConteoHijos - 1] = null;
+                padre.ConteoHijos--;
+
                 RepararInterno(padre);
             }
             else if (der != null)
             {
-                nodo.ClavesGuia.Add(padre.ClavesGuia[pos]);
-                padre.ClavesGuia.RemoveAt(pos);
-                nodo.ClavesGuia.AddRange(der.ClavesGuia);
-                foreach (var h in der.Hijos) h.Padre = nodo;
-                nodo.Hijos.AddRange(der.Hijos);
-                padre.Hijos.RemoveAt(pos + 1);
+                nodo.ClavesGuia[nodo.ConteoClaves++] = padre.ClavesGuia[pos];
+                for (int i = 0; i < der.ConteoClaves; i++)
+                    nodo.ClavesGuia[nodo.ConteoClaves++] = der.ClavesGuia[i];
+
+                for (int i = 0; i < der.ConteoHijos; i++)
+                {
+                    der.Hijos[i].Padre = nodo;
+                    nodo.Hijos[nodo.ConteoHijos++] = der.Hijos[i];
+                }
+
+                for (int i = pos; i < padre.ConteoClaves - 1; i++)
+                    padre.ClavesGuia[i] = padre.ClavesGuia[i + 1];
+                padre.ClavesGuia[padre.ConteoClaves - 1] = default;
+                padre.ConteoClaves--;
+
+                for (int i = pos + 1; i < padre.ConteoHijos - 1; i++)
+                    padre.Hijos[i] = padre.Hijos[i + 1];
+                padre.Hijos[padre.ConteoHijos - 1] = null;
+                padre.ConteoHijos--;
+
                 RepararInterno(padre);
             }
         }
 
-        // Recorre la rama izquierda de un subárbol hasta la primera hoja para extraer su clave mínima
         private TKey MinimoSubarbol(NodoBPlus<TKey, TValue> nodo)
         {
             while (!nodo.Hoja) nodo = nodo.Hijos[0];
             return _selectorClave(nodo.Valores[0]);
         }
 
-        // Actualiza de forma recursiva ascendente las claves guía internas tras mutaciones estructurales
         private void RecalcularGuias(NodoBPlus<TKey, TValue> nodo)
         {
             if (nodo.Hoja) return;
-            foreach (var h in nodo.Hijos) RecalcularGuias(h);
-            nodo.ClavesGuia.Clear();
-            for (int i = 1; i < nodo.Hijos.Count; i++)
-                nodo.ClavesGuia.Add(MinimoSubarbol(nodo.Hijos[i]));
+            for (int i = 0; i < nodo.ConteoHijos; i++)
+                RecalcularGuias(nodo.Hijos[i]);
+
+            nodo.ConteoClaves = 0;
+            for (int i = 1; i < nodo.ConteoHijos; i++)
+            {
+                nodo.ClavesGuia[nodo.ConteoClaves++] = MinimoSubarbol(nodo.Hijos[i]);
+            }
         }
 
-        // Recorre secuencialmente todas las hojas mediante sus punteros 'Siguiente' para obtener la colección completa ordenada
-        public List<TValue> Recorrer()
+        public int ContarTotal()
         {
+            int total = 0;
             var nodo = Raiz;
             while (!nodo.Hoja) nodo = nodo.Hijos[0];
-            var resultado = new List<TValue>();
             while (nodo != null)
             {
-                resultado.AddRange(nodo.Valores);
+                total += nodo.ConteoClaves;
                 nodo = nodo.Siguiente;
             }
-            return resultado;
+            return total;
+        }
+
+        public TValue[] Recorrer()
+        {
+            TValue[] salida = new TValue[ContarTotal()];
+            int idx = 0;
+            var nodo = Raiz;
+            while (!nodo.Hoja) nodo = nodo.Hijos[0];
+            while (nodo != null)
+            {
+                for (int i = 0; i < nodo.ConteoClaves; i++)
+                    salida[idx++] = nodo.Valores[i];
+                nodo = nodo.Siguiente;
+            }
+            return salida;
         }
     }
 }

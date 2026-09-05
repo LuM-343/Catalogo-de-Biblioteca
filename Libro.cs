@@ -1,15 +1,15 @@
-﻿//Clase principal de libro
+﻿using System;
 
-class Libro
+public class Libro : IComparable<Libro>
 {
     public int Id { get; set; }
     public string Titulo { get; set; }
     public string Autor { get; set; }
     public int AnioPublicacion { get; set; }
     public string Genero { get; set; }
-    public int CopiasTotales {get; set;}
-    public int CopiasDisponibles {get; set;}
-    public int PrestamosTotales {get; set;}
+    public int CopiasTotales { get; set; }
+    public int CopiasDisponibles { get; set; }
+    public int PrestamosTotales { get; set; }
 
     public Libro(int id, string titulo, string autor, int anioPublicacion, string genero, int copiasTotales, int copiasDisponibles, int prestamosTotales)
     {
@@ -25,7 +25,7 @@ class Libro
 
     public override string ToString()
     {
-        return $"ID: {Id}, Título: {Titulo}, Autor: {Autor}, Año de Publicación: {AnioPublicacion}, Género: {Genero}";
+        return $"ID: {Id} | Título: {Titulo} | Autor: {Autor} | Disponibles: {CopiasDisponibles}/{CopiasTotales} | Préstamos: {PrestamosTotales}";
     }
 
     public int CompareTo(Libro otro)
@@ -34,52 +34,25 @@ class Libro
         return Id.CompareTo(otro.Id);
     }
 
-    public int AgregarCopias(int cantidad)
-    {
-        CopiasTotales += cantidad;
-        CopiasDisponibles += cantidad;
-        return CopiasTotales;
-    }
-
-    public int QuitarCopias(int cantidad)
-    {
-        if (cantidad <= CopiasDisponibles)
-        {
-            CopiasTotales -= cantidad;
-            CopiasDisponibles -= cantidad;
-            return CopiasTotales;
-        }
-        else
-        {
-            return -1; 
-        }
-    }
-
-    public int PrestarLibro()
+    public bool Prestar()
     {
         if (CopiasDisponibles > 0)
         {
             CopiasDisponibles--;
             PrestamosTotales++;
-            return CopiasDisponibles;
+            return true;
         }
-        else
-        {
-            return -1; 
-        }
+        return false;
     }
 
-    public int DevolverLibro()
+    public bool Devolver()
     {
         if (CopiasDisponibles < CopiasTotales)
         {
             CopiasDisponibles++;
-            return CopiasDisponibles;
+            return true;
         }
-        else
-        {
-            return -1; 
-        }
+        return false;
     }
 
     public void Informacion()
@@ -87,7 +60,7 @@ class Libro
         Console.WriteLine($"ID: {Id}");
         Console.WriteLine($"Título: {Titulo}");
         Console.WriteLine($"Autor: {Autor}");
-        Console.WriteLine($"Año de Publicación: {AnioPublicacion}");
+        Console.WriteLine($"Año: {AnioPublicacion}");
         Console.WriteLine($"Género: {Genero}");
         Console.WriteLine($"Copias Totales: {CopiasTotales}");
         Console.WriteLine($"Copias Disponibles: {CopiasDisponibles}");
