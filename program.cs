@@ -33,7 +33,8 @@ class Program
             Console.WriteLine("1. Gestión de Clientes");
             Console.WriteLine("2. Gestión de Catálogo de Libros");
             Console.WriteLine("3. Gestión de Préstamos");
-            Console.WriteLine("4. Cargar catálogo desde archivo (.csv / .txt)");
+            Console.WriteLine("4. Cargar catálogo de libros desde archivo (.csv / .txt)");
+            Console.WriteLine("5. Cargar registro de clientes desde archivo (.csv / .txt)");
             Console.WriteLine("0. Salir");
             Console.WriteLine("==================================================");
             Console.Write("Seleccione un módulo: ");
@@ -52,7 +53,10 @@ class Program
                     MenuGestionPrestamos();
                     break;
                 case "4":
-                    CargarDesdeArchivo();
+                    CargarLibrosDesdeArchivo();
+                    break;
+                case "5":
+                    CargarClientesDesdeArchivo();
                     break;
                 case "0":
                     salir = true;
@@ -185,7 +189,7 @@ class Program
             return;
         }
 
-        // Validación de integridad: no borrar cliente si tiene libros prestados
+        // No se puede borrar cliente si tiene libros prestados
         if (_clientes[pos].ObtenerPrestamosPendientes().Length > 0)
         {
             Console.WriteLine("[Denegado] El cliente tiene libros pendientes de devolución. No se puede eliminar.");
@@ -524,6 +528,7 @@ class Program
         }
 
         libro.Prestar();
+        GestorArchivos.RegistrarAccion("presto", cliente, libro); //Guargar registro de préstamo en archivo
 
         // Rebalanceo Bottom-up de los montículos
         _maxHeapPrestamos.Reconstruir();
@@ -563,6 +568,7 @@ class Program
         }
 
         libro.Devolver();
+        GestorArchivos.RegistrarAccion("regreso", cliente, libro); //Guargar registro de devolución en archivo
 
         // Rebalanceo Bottom-up de los montículos
         _maxHeapPrestamos.Reconstruir();
@@ -622,12 +628,21 @@ class Program
         return null;
     }
 
-    private static void CargarDesdeArchivo()
+    private static void CargarLibrosDesdeArchivo()
     {
         Console.Write("\nIngrese la ruta del archivo (.csv o .txt) [Enter para 'libros.csv']: ");
         string ruta = Console.ReadLine();
         if (string.IsNullOrWhiteSpace(ruta)) ruta = "libros.csv";
 
         GestorArchivos.CargarLibros(ruta, _catalogo, _maxHeapPrestamos, _minHeapCopias);
+    }
+
+    private static void CargarClientesDesdeArchivo()
+    {
+        Console.Write("\nIngrese la ruta del archivo (.csv o .txt) [Enter para 'clientes.csv']: ");
+        string ruta = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(ruta)) ruta = "clientes.csv";
+
+        GestorArchivos.CargarClientes(ruta, ref _clientes, ref _conteoClientes);
     }
 }

@@ -1,0 +1,3 @@
+06/09/2026 Carlos Lopez (id: 1) presto el libro Cien Anos de Soledad (id: 101)
+06/09/2026 Carlos Lopez (id: 1) presto el libro Don Quijote de la Mancha (id: 102)
+06/09/2026 Carlos Lopez (id: 1) regreso el libro Cien Anos de Soledad (id: 101)
