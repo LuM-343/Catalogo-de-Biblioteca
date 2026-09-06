@@ -26,7 +26,6 @@ class Program
         bool salir = false;
         while (!salir)
         {
-            Console.Clear();
             Console.WriteLine("==================================================");
             Console.WriteLine("   SISTEMA DE GESTION DE CATALOGO DE BIBLIOTECA   ");
             Console.WriteLine("==================================================");
@@ -44,7 +43,6 @@ class Program
             Console.Write("Seleccione una opción: ");
 
             string opcion = Console.ReadLine();
-            Console.Clear();
 
             switch (opcion)
             {
