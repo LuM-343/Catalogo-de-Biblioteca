@@ -27,14 +27,13 @@ class Program
         bool salir = false;
         while (!salir)
         {
+            Console.Clear();
             Console.WriteLine("\n==================================================");
             Console.WriteLine("     SISTEMA DE GESTION DE BIBLIOTECA CENTRAL    ");
             Console.WriteLine("==================================================");
             Console.WriteLine("1. Gestión de Clientes");
             Console.WriteLine("2. Gestión de Catálogo de Libros");
             Console.WriteLine("3. Gestión de Préstamos");
-            Console.WriteLine("4. Cargar catálogo de libros desde archivo (.csv / .txt)");
-            Console.WriteLine("5. Cargar registro de clientes desde archivo (.csv / .txt)");
             Console.WriteLine("0. Salir");
             Console.WriteLine("==================================================");
             Console.Write("Seleccione un módulo: ");
@@ -51,12 +50,6 @@ class Program
                     break;
                 case "3":
                     MenuGestionPrestamos();
-                    break;
-                case "4":
-                    CargarLibrosDesdeArchivo();
-                    break;
-                case "5":
-                    CargarClientesDesdeArchivo();
                     break;
                 case "0":
                     salir = true;
@@ -76,7 +69,8 @@ class Program
     {
         bool volver = false;
         while (!volver)
-        {
+        {   
+            Console.Clear();
             Console.WriteLine("\n----------------------------------------");
             Console.WriteLine("           GESTION DE CLIENTES          ");
             Console.WriteLine("----------------------------------------");
@@ -84,6 +78,8 @@ class Program
             Console.WriteLine("2. Agregar cliente");
             Console.WriteLine("3. Eliminar cliente");
             Console.WriteLine("4. Ver cliente con más préstamos");
+            Console.WriteLine("5. Cargar registro de clientes desde archivo (.csv / .txt)");
+            Console.WriteLine("6. Exportar registro de clientes a archivo (.csv)");
             Console.WriteLine("0. Volver al menú principal");
             Console.WriteLine("----------------------------------------");
             Console.Write("Seleccione una opción: ");
@@ -101,6 +97,12 @@ class Program
                     break;
                 case "4":
                     VerClienteConMasPrestamos();
+                    break;
+                case "5":
+                    CargarClientesDesdeArchivo();
+                    break;
+                case "6":
+                    ExportarClientesAArchivo();
                     break;
                 case "0":
                     volver = true;
@@ -234,6 +236,24 @@ class Program
         }
     }
 
+    private static void ExportarClientesAArchivo()
+    {
+        Console.Write("\nIngrese nombre/ruta del archivo destino [Enter para 'clientes.csv']: ");
+        string ruta = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(ruta)) ruta = "clientes.csv";
+
+        GestorArchivos.ExportarClientes(ruta, _clientes, _conteoClientes);
+    }
+
+        private static void CargarClientesDesdeArchivo()
+    {
+        Console.Write("\nIngrese la ruta del archivo (.csv o .txt) [Enter para 'clientes.csv']: ");
+        string ruta = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(ruta)) ruta = "clientes.csv";
+
+        GestorArchivos.CargarClientes(ruta, ref _clientes, ref _conteoClientes);
+    }
+
     // =========================================================================
     // 2. SUBMENÚ: GESTIÓN CATÁLOGO
     // =========================================================================
@@ -242,6 +262,7 @@ class Program
         bool volver = false;
         while (!volver)
         {
+            Console.Clear();
             Console.WriteLine("\n----------------------------------------");
             Console.WriteLine("           GESTION DE CATALOGO          ");
             Console.WriteLine("----------------------------------------");
@@ -252,6 +273,8 @@ class Program
             Console.WriteLine("5. Ver libro con menos copias disponibles (Min Heap)");
             Console.WriteLine("6. Agregar libro");
             Console.WriteLine("7. Eliminar libro");
+            Console.WriteLine("8. Cargar catálogo de libros desde archivo (.csv / .txt)");
+            Console.WriteLine("9. Exportar catálogo de libros a archivo (.csv)");
             Console.WriteLine("0. Volver al menú principal");
             Console.WriteLine("----------------------------------------");
             Console.Write("Seleccione una opción: ");
@@ -279,6 +302,12 @@ class Program
                 case "7":
                     EliminarLibroCatalogo();
                     break;
+                case "8":
+                    CargarLibrosDesdeArchivo();
+                    break;
+                case "9":
+                    ExportarLibrosAArchivo();
+                    break; 
                 case "0":
                     volver = true;
                     break;
@@ -451,6 +480,23 @@ class Program
         {
             Console.WriteLine("[Error] No se pudo concretar la eliminación en el árbol.");
         }
+    }
+
+    private static void CargarLibrosDesdeArchivo()
+    {
+        Console.Write("\nIngrese la ruta del archivo (.csv o .txt) [Enter para 'libros.csv']: ");
+        string ruta = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(ruta)) ruta = "libros.csv";
+
+        GestorArchivos.CargarLibros(ruta, _catalogo, _maxHeapPrestamos, _minHeapCopias);
+    }
+    private static void ExportarLibrosAArchivo()
+    {
+        Console.Write("\nIngrese nombre/ruta del archivo destino [Enter para 'libros.csv']: ");
+        string ruta = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(ruta)) ruta = "libros.csv";
+
+        GestorArchivos.ExportarLibros(ruta, _catalogo);
     }
 
     // =========================================================================
@@ -628,21 +674,4 @@ class Program
         return null;
     }
 
-    private static void CargarLibrosDesdeArchivo()
-    {
-        Console.Write("\nIngrese la ruta del archivo (.csv o .txt) [Enter para 'libros.csv']: ");
-        string ruta = Console.ReadLine();
-        if (string.IsNullOrWhiteSpace(ruta)) ruta = "libros.csv";
-
-        GestorArchivos.CargarLibros(ruta, _catalogo, _maxHeapPrestamos, _minHeapCopias);
-    }
-
-    private static void CargarClientesDesdeArchivo()
-    {
-        Console.Write("\nIngrese la ruta del archivo (.csv o .txt) [Enter para 'clientes.csv']: ");
-        string ruta = Console.ReadLine();
-        if (string.IsNullOrWhiteSpace(ruta)) ruta = "clientes.csv";
-
-        GestorArchivos.CargarClientes(ruta, ref _clientes, ref _conteoClientes);
-    }
 }

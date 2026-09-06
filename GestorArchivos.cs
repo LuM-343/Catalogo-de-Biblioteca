@@ -203,5 +203,69 @@ namespace EstructurasSuperPros
                 Console.WriteLine($"[Aviso] No se pudo escribir en la bitácora: {ex.Message}");
             }
         }
+
+        // ---------------------------------------------------------
+        // EXPORTACIÓN / GUARDADO DE LIBROS EN CSV
+        // ---------------------------------------------------------
+        public static void ExportarLibros(string rutaArchivo, ArbolBPlus<int, Libro> catalogo)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(rutaArchivo))
+                    rutaArchivo = "libros.csv";
+
+                // Obtenemos los libros recorriendo las hojas del Árbol B+
+                Libro[] libros = catalogo.Recorrer();
+
+                using (StreamWriter escritor = new StreamWriter(rutaArchivo, append: false))
+                {
+                    // Encabezado estándar compatible con el método CargarLibros
+                    escritor.WriteLine("Id,Titulo,Autor,AnioPublicacion,Genero,CopiasTotales,CopiasDisponibles,PrestamosTotales");
+
+                    for (int i = 0; i < libros.Length; i++)
+                    {
+                        Libro lib = libros[i];
+                        // Escribir fila formateada separada por comas
+                        escritor.WriteLine($"{lib.Id},{lib.Titulo},{lib.Autor},{lib.AnioPublicacion},{lib.Genero},{lib.CopiasTotales},{lib.CopiasDisponibles},{lib.PrestamosTotales}");
+                    }
+                }
+
+                Console.WriteLine($"\n[Éxito] Se exportaron {libros.Length} libros a '{rutaArchivo}'.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n[Error al exportar libros] {ex.Message}");
+            }
+        }
+
+        // ---------------------------------------------------------
+        // EXPORTACIÓN / GUARDADO DE CLIENTES EN CSV
+        // ---------------------------------------------------------
+        public static void ExportarClientes(string rutaArchivo, Cliente[] clientes, int conteoClientes)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(rutaArchivo))
+                    rutaArchivo = "clientes.csv";
+
+                using (StreamWriter escritor = new StreamWriter(rutaArchivo, append: false))
+                {
+                    // Encabezado estándar compatible con CargarClientes
+                    escritor.WriteLine("Id,Nombre,Celular,Residencia");
+
+                    for (int i = 0; i < conteoClientes; i++)
+                    {
+                        Cliente c = clientes[i];
+                        escritor.WriteLine($"{c.Id},{c.Nombre},{c.Celular},{c.Residencia}");
+                    }
+                }
+
+                Console.WriteLine($"\n[Éxito] Se exportaron {conteoClientes} clientes a '{rutaArchivo}'.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"\n[Error al exportar clientes] {ex.Message}");
+            }
+        }
     }
 }
