@@ -1,4 +1,5 @@
 using System;
+using System.Windows.Forms;
 using EstructurasSuperPros;
 
 class Program
@@ -10,20 +11,43 @@ class Program
     // Arreglo nativo dinámico para clientes (sin colecciones nativas de .NET)
     private static Cliente[] _clientes;
     private static int _conteoClientes;
+    [STAThread]
 
     static void Main()
+    {
+        Console.WriteLine("========================================");
+        Console.WriteLine("¿En qué modo deseas iniciar el sistema?");
+        Console.WriteLine("1. Modo Consola");
+        Console.WriteLine("2. Modo Interfaz Gráfica (Alfa)");
+        Console.WriteLine("========================================");
+        Console.Write("Elige una opción: ");
+        
+        string modo = Console.ReadLine();
+
+        if (modo == "2")
+        {
+            // Arranca el modo visual
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MenuVisual()); 
+        }
+        else
+        {
+            // Arranca el modo consola 
+            IniciarConsolaOriginal(); 
+        }
+    }
+
+    //Iniciar con consola
+    private static void IniciarConsolaOriginal()
     {
         _catalogo = new ArbolBPlus<int, Libro>(libro => libro.Id, orden: 4);
         _maxHeapPrestamos = new MaxHeapLibros();
         _minHeapCopias = new MinHeapLibros();
-
         _clientes = new Cliente[10];
         _conteoClientes = 0;
 
-        // Datos iniciales de prueba
-        RegistrarClienteDirecto(new Cliente(1, "Carlos Lopez", "5551-2345", "Zona 10"));
-        RegistrarClienteDirecto(new Cliente(2, "Maria Morales", "5552-6789", "Zona 16"));
-
+        Console.WriteLine("Iniciando menú de consola...");
         bool salir = false;
         while (!salir)
         {
@@ -61,7 +85,7 @@ class Program
             }
         }
     }
-
+    
     // =========================================================================
     // 1. SUBMENÚ: GESTIÓN CLIENTES
     // =========================================================================
