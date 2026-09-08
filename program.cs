@@ -94,7 +94,7 @@ class Program
         bool volver = false;
         while (!volver)
         {   
-            Console.Clear();
+
             Console.WriteLine("\n----------------------------------------");
             Console.WriteLine("           GESTION DE CLIENTES          ");
             Console.WriteLine("----------------------------------------");
@@ -286,7 +286,6 @@ class Program
         bool volver = false;
         while (!volver)
         {
-            Console.Clear();
             Console.WriteLine("\n----------------------------------------");
             Console.WriteLine("           GESTION DE CATALOGO          ");
             Console.WriteLine("----------------------------------------");
