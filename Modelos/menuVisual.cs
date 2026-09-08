@@ -2,7 +2,11 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using EstructurasSuperPros;
-
+// =====================================================================
+// AVISO MEGA IMPORTANTE: LA PARTE DEL MENU VISUAL SE DESARROLLÓ CON IA
+// NO SE ENCUENTRA PARA NADA EN UNA VERSIÓN FUNCIONAL, SOLO ESTA COMO
+// REFERENCIA DE CÓMO PODRÍA SER UNA INTERFAZ GRÁFICA PARA EL PROYECTO.
+// =====================================================================
 namespace EstructurasSuperPros
 {
     public class MenuVisual : Form

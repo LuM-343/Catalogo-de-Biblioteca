@@ -18,7 +18,7 @@ class Program
         Console.WriteLine("========================================");
         Console.WriteLine("¿En qué modo deseas iniciar el sistema?");
         Console.WriteLine("1. Modo Consola");
-        Console.WriteLine("2. Modo Interfaz Gráfica (Alfa)");
+        Console.WriteLine("2. Modo Interfaz Gráfica (Solo como demostración, no funcional)");
         Console.WriteLine("========================================");
         Console.Write("Elige una opción: ");
         
